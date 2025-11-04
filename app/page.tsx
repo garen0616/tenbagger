@@ -11,10 +11,30 @@ type RuleResult = {
   [k: string]: any;
 };
 
+type ScoreResponse = {
+  ticker: string;
+  total_score: number;
+  rating: string;
+  ps?: number;
+  cagr1y?: number;
+  rules: Record<string, RuleResult>;
+  red_flags: string[];
+  data_quality: {
+    quarters: number;
+    has_diluted_shares: boolean;
+  };
+  quarterly_revenue?: Array<{ label: string; revenue: number | null }>;
+  cagr_detail?: {
+    latest_periods?: string[];
+    previous_periods?: string[];
+  };
+  warnings?: string[];
+};
+
 export default function Home() {
   const [ticker, setTicker] = useState("NVDA");
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ScoreResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const currencyFormatter = useMemo(
     () =>
@@ -56,7 +76,7 @@ export default function Home() {
         const msg = j?.error || `HTTP ${r.status}`;
         throw new Error(msg);
       }
-      setData(j);
+      setData(j as ScoreResponse);
     } catch (e: any) {
       setError(e.message || "發生錯誤");
     } finally {
@@ -144,8 +164,8 @@ export default function Home() {
               <Card>
                 <h3 className="font-semibold mb-3">基本快篩（逐條）</h3>
                 <div className="space-y-2">
-                  {Object.entries(data.rules).map(([k,v]:[string,RuleResult])=>(
-                    <Row key={k} name={k} value={v}/>
+                  {Object.entries(data.rules ?? {}).map(([k, v]) => (
+                    <Row key={k} name={k} value={v as RuleResult}/>
                   ))}
                 </div>
               </Card>

@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import quarterOfYear from "dayjs/plugin/quarterOfYear";
-import { Fundamentals } from "./types";
+import { Fundamentals, Quarter } from "./types";
 
 dayjs.extend(quarterOfYear);
 
