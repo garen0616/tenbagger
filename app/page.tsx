@@ -29,6 +29,8 @@ type ScoreResponse = {
     previous_periods?: string[];
   };
   warnings?: string[];
+  data_source?: string;
+  confidence?: string;
 };
 
 export default function Home() {
@@ -159,6 +161,14 @@ export default function Home() {
                       <li key={idx}>{w}</li>
                     ))}
                   </ul>
+                </Card>
+              )}
+              {data.data_source === "degraded" && (
+                <Card>
+                  <h3 className="font-semibold mb-2 text-rose-400">降規模式（資料不足）</h3>
+                  <p className="text-xs md:text-sm opacity-80">
+                    無法從外部來源取得完整財報，以下結果僅供粗略參考，可信度較低。請補齊財報或改用其他資料來源再行確認。
+                  </p>
                 </Card>
               )}
               <Card>

@@ -14,10 +14,12 @@ type ProviderError = Error & {
   provider?: string;
   recoverable?: boolean;
   reason?: string;
+  errors?: string[];
 };
 
 const FMP_BASE = "https://financialmodelingprep.com/api/v3";
 const FINNHUB_BASE = "https://finnhub.io/api/v1";
+const ALPHA_VANTAGE_BASE = "https://www.alphavantage.co/query";
 const SEC_TICKER_URL = "https://www.sec.gov/files/company_tickers.json";
 const SEC_COMPANY_FACTS_BASE = "https://data.sec.gov/api/xbrl/companyfacts";
 
@@ -677,6 +679,105 @@ async function fetchFromFmp(symbol: string): Promise<Fundamentals> {
   return { ticker: symbol, marketCap, quarters };
 }
 
+async function fetchFromAlphaVantage(symbol: string): Promise<Fundamentals> {
+  const key = process.env.ALPHA_VANTAGE_API_KEY;
+  if (!key) {
+    throw createProviderError("AlphaVantage", "ALPHA_VANTAGE_API_KEY 未設定，略過 Alpha Vantage。", true, "missing-key");
+  }
+
+  const call = async (func: string) => {
+    const url = new URL(ALPHA_VANTAGE_BASE);
+    url.searchParams.set("function", func);
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("apikey", key);
+    const json = await fetchJson(url, "AlphaVantage");
+    if (json?.Note) {
+      throw createProviderError("AlphaVantage", "API 配額限制：請稍後再試。", true, "quota");
+    }
+    if (json?.Information) {
+      throw createProviderError("AlphaVantage", json.Information, true, "quota");
+    }
+    return json;
+  };
+
+  const [incomeJson, balanceJson, cashflowJson, overviewJson] = await Promise.all([
+    call("INCOME_STATEMENT"),
+    call("BALANCE_SHEET"),
+    call("CASH_FLOW"),
+    call("OVERVIEW"),
+  ]);
+
+  const incomeReports = Array.isArray(incomeJson?.quarterlyReports)
+    ? incomeJson.quarterlyReports as AnyRecord[]
+    : [];
+  const balanceReports = Array.isArray(balanceJson?.quarterlyReports)
+    ? balanceJson.quarterlyReports as AnyRecord[]
+    : [];
+  const cashReports = Array.isArray(cashflowJson?.quarterlyReports)
+    ? cashflowJson.quarterlyReports as AnyRecord[]
+    : [];
+
+  if (incomeReports.length === 0 && balanceReports.length === 0 && cashReports.length === 0) {
+    throw createProviderError("AlphaVantage", "查無季度財報資料。", true, "insufficient-data");
+  }
+
+  const byDate = new Map<string, Quarter>();
+
+  for (const report of incomeReports) {
+    const iso = toISODate(report?.fiscalDateEnding);
+    applyPatch(byDate, iso, {
+      revenue: safeNum(report?.totalRevenue),
+      grossProfit: safeNum(report?.grossProfit),
+      sga: safeNum(report?.sellingGeneralAdministrative),
+      rnd: safeNum(report?.researchAndDevelopment),
+      ebitda: safeNum(report?.ebitda),
+      netIncome: safeNum(report?.netIncome),
+      dilutedShares: safeNum(report?.weightedAverageDilutedSharesOutstanding),
+      fiscalYear: typeof report?.fiscalYearEnding === "string" ? Number(report.fiscalYearEnding) : undefined,
+    });
+  }
+
+  for (const report of cashReports) {
+    const iso = toISODate(report?.fiscalDateEnding);
+    const ocf = safeNum(report?.operatingCashflow);
+    let capex = safeNum(report?.capitalExpenditures);
+    if (capex !== undefined) {
+      capex = Math.abs(capex);
+    }
+    applyPatch(byDate, iso, { ocf, capex });
+  }
+
+  for (const report of balanceReports) {
+    const iso = toISODate(report?.fiscalDateEnding);
+    let totalDebt = safeNum(report?.totalLiabilities);
+    const shortDebt = safeNum(report?.shortLongTermDebtTotal);
+    const longDebt = safeNum(report?.longTermDebt);
+    if (totalDebt === undefined) {
+      if (shortDebt !== undefined || longDebt !== undefined) {
+        totalDebt = (shortDebt ?? 0) + (longDebt ?? 0);
+      }
+    }
+    applyPatch(byDate, iso, {
+      inventory: safeNum(report?.inventory),
+      receivables: safeNum(report?.currentNetReceivables ?? report?.currentAccountsReceivable),
+      cash: safeNum(report?.cashAndCashEquivalentsAtCarryingValue),
+      totalDebt,
+    });
+  }
+
+  const quarters = finalizeQuarters(byDate);
+  if (quarters.length < 4) {
+    throw createProviderError("AlphaVantage", "季度財報不足四季。", true, "insufficient-data");
+  }
+
+  const marketCap = safeNum(overviewJson?.MarketCapitalization);
+  if (marketCap === undefined || !Number.isFinite(marketCap)) {
+    throw createProviderError("AlphaVantage", "缺少市值資料。", true, "missing-market-cap");
+  }
+
+  return { ticker: symbol, marketCap, quarters };
+}
+
 function extractConcept(section: AnyRecord[] | undefined, concepts: string[]): number | undefined {
   if (!Array.isArray(section)) return undefined;
   for (const concept of concepts) {
@@ -1135,6 +1236,7 @@ export async function fetchFundamentals(ticker: string): Promise<Fundamentals> {
   }> = [
     { name: "SEC", handler: fetchFromSec },
     { name: "FMP", handler: fetchFromFmp },
+    { name: "AlphaVantage", handler: fetchFromAlphaVantage },
     { name: "Finnhub", handler: fetchFromFinnhub },
   ];
 
@@ -1152,8 +1254,10 @@ export async function fetchFundamentals(ticker: string): Promise<Fundamentals> {
     }
   }
 
-  const aggregate = errors.length
+  const aggregateMessage = errors.length
     ? `所有外部財報來源皆失敗：${errors.join("｜")}`
     : "所有外部財報來源皆失敗。";
-  throw createProviderError("DATA", aggregate, false, "exhausted");
+  const aggregateError = createProviderError("DATA", aggregateMessage, false, "exhausted");
+  aggregateError.errors = errors;
+  throw aggregateError;
 }

@@ -3,7 +3,7 @@
 此專案提供一個繁體中文的 Web UI 與 `/api/score` 端點，讓使用者輸入美股代號後，即時取得「十條基本快篩 + 十大地雷」分析結果，並顯示逐項說明、警示與營收趨勢圖。頁面亦適合作為 n8n HTTP 節點的輸出。
 
 ### 主要特色
-- **三層資料來源**：依序嘗試 SEC EDGAR → Financial Modeling Prep (FMP) → Finnhub。所有來源失敗時會回傳 502 與警告訊息（不再回落至內建 NVDA Demo）。
+- **多層資料來源**：依序嘗試 SEC EDGAR → Financial Modeling Prep (FMP) → Alpha Vantage → Finnhub；全部失敗時會進入降規模式，仍提供摘要並標示資料不足。
 - **季度資料校正**：解析最新季度起連續 8 季的實際財報，確保 CAGR、YoY 以及各項比率皆以一致的時間窗計算。
 - **前端體驗**：結果以卡片與條狀圖呈現，逐條列出規則（含 EV/EBITDA、EV/FCF、PEG、自由現金流覆蓋率）說明、原始指標與通過狀態，並指出觸發的地雷項目。
 
@@ -14,11 +14,12 @@
 ```env
 FMP_API_KEY=your_fmp_api_key
 FINNHUB_API_KEY=your_finnhub_api_key
+ALPHA_VANTAGE_API_KEY=your_alpha_vantage_api_key
 SEC_USER_AGENT="tenbagger-checker/0.1 (your.name@example.com)"
 ```
 
 - `SEC_USER_AGENT` 必須包含可聯絡到你的 email 或網址，符合 SEC API 的使用規範。
-- 若某個來源缺少授權或被限流，系統會自動切換至下一個來源並於回傳結果的 `warnings` 中說明。
+- 若某個來源缺少授權或被限流，系統會自動切換至下一個來源並於回傳結果的 `warnings` 中說明；全部失敗時會回傳降規結果（`data_source = degraded`，可信度較低）。
 
 ## 開發流程
 
