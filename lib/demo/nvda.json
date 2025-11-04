@@ -1,0 +1,14 @@
+{
+  "ticker": "NVDA",
+  "marketCap": 4921000000000,
+  "quarters": [
+    {"period":"2025-07-28","revenue":30000000000,"grossProfit":22500000000,"sga":1400000000,"rnd":3200000000,"ocf":13000000000,"capex":4500000000,"inventory":15000000000,"receivables":16000000000,"dilutedShares":2450000000},
+    {"period":"2025-04-28","revenue":26500000000,"grossProfit":19875000000,"sga":1300000000,"rnd":3000000000,"ocf":11500000000,"capex":4000000000,"inventory":14800000000,"receivables":15000000000,"dilutedShares":2440000000},
+    {"period":"2025-01-28","revenue":22000000000,"grossProfit":16500000000,"sga":1200000000,"rnd":2850000000,"ocf":9800000000,"capex":3600000000,"inventory":14600000000,"receivables":14800000000,"dilutedShares":2435000000},
+    {"period":"2024-10-28","revenue":18000000000,"grossProfit":13500000000,"sga":1100000000,"rnd":2700000000,"ocf":8200000000,"capex":3200000000,"inventory":14400000000,"receivables":14500000000,"dilutedShares":2430000000},
+    {"period":"2024-07-28","revenue":13500000000,"grossProfit":9750000000,"sga":1100000000,"rnd":2600000000,"ocf":7200000000,"capex":2600000000,"inventory":14200000000,"receivables":14200000000,"dilutedShares":2425000000},
+    {"period":"2024-04-28","revenue":11000000000,"grossProfit":8250000000,"sga":1050000000,"rnd":2500000000,"ocf":6200000000,"capex":2400000000,"inventory":14000000000,"receivables":14000000000,"dilutedShares":2420000000},
+    {"period":"2024-01-28","revenue":9000000000,"grossProfit":6750000000,"sga":1000000000,"rnd":2400000000,"ocf":5200000000,"capex":2200000000,"inventory":13800000000,"receivables":13800000000,"dilutedShares":2415000000},
+    {"period":"2023-10-28","revenue":7500000000,"grossProfit":5625000000,"sga":950000000,"rnd":2300000000,"ocf":4200000000,"capex":2100000000,"inventory":13600000000,"receivables":13600000000,"dilutedShares":2410000000}
+  ]
+}
